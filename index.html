@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inkwell — AI Correspondence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://js.puter.com/v2/"></script>
+<style>
+  :root{
+    --bg: #14181f;
+    --panel: #1a1f28;
+    --panel-2: #20263149;
+    --raised: #232a36;
+    --paper: #ece6d6;
+    --paper-ink: #2b2620;
+    --ink: #e7e3d8;
+    --muted: #8b93a3;
+    --muted-2: #5c6577;
+    --teal: #4fa88f;
+    --teal-dim: #3a7d6b;
+    --gold: #cf9f4a;
+    --border: rgba(231,227,216,0.09);
+    --border-strong: rgba(231,227,216,0.16);
+    --danger: #c0685a;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background: radial-gradient(1200px 800px at 15% -10%, #1c2230 0%, var(--bg) 55%);
+    color: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection{ background: var(--teal-dim); color: #fff; }
+
+  .app{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    height:100vh;
+    width:100vw;
+    overflow:hidden;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    padding: 22px 18px 16px;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size: 25px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .brand .dot{ color: var(--gold); font-size: 14px; }
+  .tagline{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin-top: 4px;
+    margin-bottom: 22px;
+  }
+
+  .new-btn{
+    width:100%;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .new-btn:hover{ border-color: var(--teal); background: rgba(79,168,143,0.08); }
+  .new-btn .plus{ color: var(--teal); font-family:'Fraunces',serif; font-size:16px; }
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin: 20px 2px 8px;
+  }
+
+  select.model-select{
+    width:100%;
+    background: var(--raised);
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    cursor:pointer;
+  }
+  select.model-select:focus{ outline: 1px solid var(--teal); }
+
+  .thread-list{
+    flex:1;
+    min-height: 0;
+    overflow-y:auto;
+    margin-top: 4px;
+    display:flex;
+    flex-direction:column;
+    gap: 3px;
+    padding-right: 2px;
+  }
+  .thread-item{
+    position:relative;
+    padding: 9px 30px 9px 12px;
+    border-radius: 7px;
+    cursor:pointer;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1px solid transparent;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .thread-item:hover{ background: var(--panel-2); color: var(--ink); }
+  .thread-item.active{
+    background: var(--panel-2);
+    color: var(--ink);
+    border-color: var(--border-strong);
+  }
+  .thread-item.active::before{
+    content:"";
+    position:absolute; left:0; top:8px; bottom:8px; width:2px;
+    background: var(--gold);
+    border-radius: 2px;
+  }
+  .thread-del{
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    background:none; border:none; color: var(--muted-2);
+    font-size: 15px; cursor:pointer; padding:2px 6px; border-radius:5px;
+    opacity:0; transition: opacity .1s;
+    line-height:1;
+  }
+  .thread-item:hover .thread-del{ opacity:1; }
+  .thread-del:hover{ color: var(--danger); background: rgba(192,104,90,0.12); }
+
+  .powered{
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    color: var(--muted-2);
+    text-decoration:none;
+  }
+  .powered:hover{ color: var(--teal); }
+
+  /* ---------- Main chat ---------- */
+  .chat{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    min-height:0;
+  }
+  .chat-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 18px 34px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink:0;
+  }
+  #chatTitle{
+    font-family:'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width: 60vw;
+  }
+  .model-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    border: 1px solid rgba(79,168,143,0.35);
+    background: rgba(79,168,143,0.08);
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space:nowrap;
+  }
+
+  .messages{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    padding: 30px 0 10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .messages-inner{
+    width: 100%;
+    max-width: 720px;
+    padding: 0 24px 20px;
+    display:flex;
+    flex-direction:column;
+    gap: 22px;
+  }
+
+  .empty-state{
+    margin: auto;
+    text-align:center;
+    color: var(--muted-2);
+    max-width: 420px;
+    padding: 0 24px;
+  }
+  .empty-state .seal{
+    width:52px;height:52px;border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, var(--gold), #9c7327 75%);
+    margin: 0 auto 18px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif; color:#241c08; font-size:20px; font-weight:700;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+  .empty-state h2{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    color: var(--ink);
+    font-size: 20px;
+    margin: 0 0 8px;
+  }
+  .empty-state p{ font-size: 13.5px; line-height:1.6; margin:0; }
+
+  .msg{
+    display:flex;
+    gap: 12px;
+    align-items:flex-start;
+  }
+  .msg.user{ flex-direction: row-reverse; }
+
+  .seal-avatar{
+    flex-shrink:0;
+    width: 30px; height: 30px; border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces', serif; font-weight:700; font-size: 13px;
+    margin-top: 3px;
+  }
+  .msg.assistant .seal-avatar{
+    background: radial-gradient(circle at 35% 30%, var(--gold), #8a691f 75%);
+    color:#241c08;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  .msg.user .seal-avatar{
+    background: var(--teal-dim);
+    color:#eafff8;
+  }
+
+  .bubble-col{ display:flex; flex-direction:column; gap:4px; max-width: 82%; }
+  .msg.user .bubble-col{ align-items:flex-end; }
+
+  .meta-row{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted-2);
+    letter-spacing: .04em;
+    padding: 0 4px;
+  }
+
+  .bubble{
+    padding: 11px 15px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    line-height: 1.62;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .msg.assistant .bubble{
+    background: var(--raised);
+    border: 1px solid var(--border);
+    border-top-left-radius: 3px;
+    color: var(--ink);
+  }
+  .msg.user .bubble{
+    background: var(--paper);
+    color: var(--paper-ink);
+    border-top-right-radius: 3px;
+  }
+  .bubble.error{
+    background: rgba(192,104,90,0.1);
+    border: 1px solid rgba(192,104,90,0.35);
+    color: #e8b3ab;
+  }
+  .cursor{
+    display:inline-block; width:7px; height:14px;
+    background: var(--teal); margin-left:2px; vertical-align:-2px;
+    animation: blink 1s step-start infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .thinking{
+    display:flex; gap:4px; padding: 4px 2px;
+  }
+  .thinking span{
+    width:6px;height:6px;border-radius:50%;
+    background: var(--muted-2);
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .thinking span:nth-child(2){ animation-delay:.15s; }
+  .thinking span:nth-child(3){ animation-delay:.3s; }
+  @keyframes pulse{ 0%,80%,100%{ opacity:.25; transform:scale(0.85);} 40%{ opacity:1; transform:scale(1);} }
+
+  /* ---------- Composer ---------- */
+  .composer{
+    flex-shrink:0;
+    display:flex;
+    gap: 10px;
+    align-items:flex-end;
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 14px 24px 24px;
+  }
+  #input{
+    flex:1;
+    background: var(--raised);
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-family:'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height:1.5;
+    resize:none;
+    max-height: 200px;
+    outline:none;
+    transition: border-color .15s;
+  }
+  #input:focus{ border-color: var(--teal); }
+  #input::placeholder{ color: var(--muted-2); }
+
+  .send-btn{
+    flex-shrink:0;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: radial-gradient(circle at 35% 30%, var(--gold), #8a691f 75%);
+    color: #241c08;
+    font-size: 17px;
+    cursor:pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: transform .12s ease;
+  }
+  .send-btn:hover{ transform: translateY(-1px) scale(1.03); }
+  .send-btn:active{ transform: scale(0.96); }
+  .send-btn:disabled{ opacity:.4; cursor:default; transform:none; }
+
+  .hint{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted-2);
+    padding-bottom: 12px;
+    letter-spacing:.03em;
+  }
+
+  /* scrollbars */
+  .thread-list::-webkit-scrollbar, .messages::-webkit-scrollbar{ width:7px; }
+  .thread-list::-webkit-scrollbar-thumb, .messages::-webkit-scrollbar-thumb{
+    background: var(--border-strong); border-radius: 4px;
+  }
+
+  @media (max-width: 760px){
+    .app{ grid-template-columns: 1fr; }
+    .sidebar{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">Inkwell<span class="dot">·</span></div>
+    <div class="tagline">correspondence with 500+ models</div>
+
+    <button class="new-btn" id="newChatBtn"><span class="plus">＋</span> New letter</button>
+
+    <div class="section-label">Correspondent</div>
+    <select id="modelSelect" class="model-select"></select>
+
+    <div class="section-label">Threads</div>
+    <div class="thread-list" id="threadList"></div>
+
+    <a class="powered" href="https://developer.puter.com" target="_blank" rel="noopener">Powered by Puter</a>
+  </aside>
+
+  <main class="chat">
+    <div class="chat-header">
+      <div id="chatTitle">Untitled letter</div>
+      <div class="model-badge" id="modelBadge">—</div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="messages-inner" id="messagesInner"></div>
+    </div>
+
+    <form class="composer" id="composer">
+      <textarea id="input" rows="1" placeholder="Write your message…"></textarea>
+      <button type="submit" class="send-btn" id="sendBtn" aria-label="Send">✦</button>
+    </form>
+    <div class="hint">Enter to send · Shift+Enter for a new line</div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'inkwell.threads.v1';
+  const DEFAULT_MODEL = 'gpt-5-nano';
+
+  const FALLBACK_MODELS = [
+    { id: 'gpt-5-nano', provider: 'openai', name: 'GPT-5 Nano' },
+    { id: 'gpt-5.6-luna', provider: 'openai', name: 'GPT-5.6 Luna' },
+    { id: 'claude-sonnet-4-6', provider: 'claude', name: 'Claude Sonnet 4.6' },
+    { id: 'claude-opus-4-8', provider: 'claude', name: 'Claude Opus 4.8' },
+    { id: 'gemini-3.1-flash-lite', provider: 'google', name: 'Gemini 3.1 Flash Lite' },
+    { id: 'reka/reka-edge', provider: 'reka', name: 'Reka Edge' },
+  ];
+
+  const el = (sel) => document.querySelector(sel);
+  const messagesInner = el('#messagesInner');
+  const messagesPane = el('#messages');
+  const threadListEl = el('#threadList');
+  const modelSelect = el('#modelSelect');
+  const modelBadge = el('#modelBadge');
+  const chatTitle = el('#chatTitle');
+  const composer = el('#composer');
+  const input = el('#input');
+  const sendBtn = el('#sendBtn');
+
+  let state = loadState();
+  let sending = false;
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed.threads && parsed.threads.length) return parsed;
+      }
+    }catch(e){}
+    const t = newThreadObj();
+    return { threads: [t], activeId: t.id };
+  }
+
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function newThreadObj(model){
+    return {
+      id: 'th_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      title: 'Untitled letter',
+      model: model || modelSelect.value || DEFAULT_MODEL,
+      messages: [],
+      createdAt: Date.now(),
+    };
+  }
+
+  function activeThread(){
+    return state.threads.find(t => t.id === state.activeId) || state.threads[0];
+  }
+
+  function initials(nameOrId){
+    const clean = (nameOrId || '').split('/').pop();
+    const parts = clean.replace(/[-_.]/g,' ').split(' ').filter(Boolean);
+    if(!parts.length) return 'AI';
+    if(parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  /* ---------------- Model list ---------------- */
+  async function populateModels(){
+    let models = FALLBACK_MODELS;
+    try{
+      const fetched = await puter.ai.listModels();
+      if(Array.isArray(fetched) && fetched.length) models = fetched;
+    }catch(e){
+      console.warn('Falling back to default model list:', e);
+    }
+
+    const byProvider = {};
+    for(const m of models){
+      const p = m.provider || 'other';
+      (byProvider[p] = byProvider[p] || []).push(m);
+    }
+
+    modelSelect.innerHTML = '';
+    Object.keys(byProvider).sort().forEach(provider => {
+      const group = document.createElement('optgroup');
+      group.label = provider;
+      byProvider[provider].forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name || m.id;
+        group.appendChild(opt);
+      });
+      modelSelect.appendChild(group);
+    });
+
+    const current = activeThread();
+    const wantedModel = (current && current.model) || DEFAULT_MODEL;
+    if([...modelSelect.options].some(o => o.value === wantedModel)){
+      modelSelect.value = wantedModel;
+    }
+    updateModelBadge();
+  }
+
+  function updateModelBadge(){
+    modelBadge.textContent = modelSelect.value || '—';
+  }
+
+  modelSelect.addEventListener('change', () => {
+    const t = activeThread();
+    if(t){ t.model = modelSelect.value; saveState(); }
+    updateModelBadge();
+  });
+
+  /* ---------------- Rendering ---------------- */
+  function renderThreadList(){
+    threadListEl.innerHTML = '';
+    const sorted = [...state.threads].sort((a,b) => b.createdAt - a.createdAt);
+    for(const t of sorted){
+      const item = document.createElement('div');
+      item.className = 'thread-item' + (t.id === state.activeId ? ' active' : '');
+      item.textContent = t.title || 'Untitled letter';
+      item.addEventListener('click', () => {
+        state.activeId = t.id;
+        saveState();
+        renderAll();
+      });
+
+      const del = document.createElement('button');
+      del.className = 'thread-del';
+      del.textContent = '×';
+      del.title = 'Delete thread';
+      del.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        deleteThread(t.id);
+      });
+
+      item.appendChild(del);
+      threadListEl.appendChild(item);
+    }
+  }
+
+  function deleteThread(id){
+    state.threads = state.threads.filter(t => t.id !== id);
+    if(!state.threads.length){
+      const t = newThreadObj();
+      state.threads.push(t);
+      state.activeId = t.id;
+    } else if(state.activeId === id){
+      state.activeId = state.threads[0].id;
+    }
+    saveState();
+    renderAll();
+  }
+
+  function renderMessages(){
+    const t = activeThread();
+    messagesInner.innerHTML = '';
+    if(!t || !t.messages.length){
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = `
+        <div class="seal">✦</div>
+        <h2>Begin a correspondence</h2>
+        <p>Choose a correspondent from the sidebar and write your first line below. Inkwell keeps every thread on this device.</p>
+      `;
+      messagesPane.style.alignItems = 'center';
+      messagesInner.appendChild(empty);
+      return;
+    }
+    messagesPane.style.alignItems = 'stretch';
+    for(const m of t.messages){
+      messagesInner.appendChild(renderMessage(m));
+    }
+    scrollToBottom();
+  }
+
+  function renderMessage(m){
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+
+    const avatar = document.createElement('div');
+    avatar.className = 'seal-avatar';
+    avatar.textContent = m.role === 'user' ? 'YOU' : initials(m.model || activeThread().model);
+
+    const col = document.createElement('div');
+    col.className = 'bubble-col';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta-row';
+    meta.textContent = m.role === 'user' ? 'you' : (m.model || activeThread().model);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble' + (m.error ? ' error' : '');
+    bubble.textContent = m.content;
+
+    col.appendChild(meta);
+    col.appendChild(bubble);
+    wrap.appendChild(avatar);
+    wrap.appendChild(col);
+    return wrap;
+  }
+
+  function scrollToBottom(){
+    messagesPane.scrollTop = messagesPane.scrollHeight;
+  }
+
+  function renderHeader(){
+    const t = activeThread();
+    chatTitle.textContent = (t && t.title) || 'Untitled letter';
+    if(t) modelSelect.value = t.model;
+    updateModelBadge();
+  }
+
+  function renderAll(){
+    renderThreadList();
+    renderHeader();
+    renderMessages();
+  }
+
+  /* ---------------- Sending ---------------- */
+  function autoResize(){
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+  }
+  input.addEventListener('input', autoResize);
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      composer.requestSubmit();
+    }
+  });
+
+  composer.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if(!text || sending) return;
+
+    const t = activeThread();
+    t.messages.push({ role: 'user', content: text });
+    if(t.title === 'Untitled letter'){
+      t.title = text.length > 42 ? text.slice(0,42) + '…' : text;
+    }
+    saveState();
+    input.value = '';
+    autoResize();
+    renderThreadList();
+    renderHeader();
+    renderMessages();
+
+    await streamReply(t);
+  });
+
+  el('#newChatBtn').addEventListener('click', () => {
+    const t = newThreadObj(modelSelect.value);
+    state.threads.push(t);
+    state.activeId = t.id;
+    saveState();
+    renderAll();
+    input.focus();
+  });
+
+  async function streamReply(thread){
+    sending = true;
+    sendBtn.disabled = true;
+
+    // placeholder assistant message row
+    const wrap = document.createElement('div');
+    wrap.className = 'msg assistant';
+    const avatar = document.createElement('div');
+    avatar.className = 'seal-avatar';
+    avatar.textContent = initials(thread.model);
+    const col = document.createElement('div');
+    col.className = 'bubble-col';
+    const meta = document.createElement('div');
+    meta.className = 'meta-row';
+    meta.textContent = thread.model;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    const thinking = document.createElement('div');
+    thinking.className = 'thinking';
+    thinking.innerHTML = '<span></span><span></span><span></span>';
+    bubble.appendChild(thinking);
+    col.appendChild(meta);
+    col.appendChild(bubble);
+    wrap.appendChild(avatar);
+    wrap.appendChild(col);
+    messagesInner.appendChild(wrap);
+    scrollToBottom();
+
+    const apiMessages = thread.messages.map(m => ({ role: m.role, content: m.content }));
+
+    let fullText = '';
+    let started = false;
+
+    try{
+      const response = await puter.ai.chat(apiMessages, {
+        model: thread.model,
+        stream: true,
+      });
+
+      for await (const part of response){
+        if(part && part.type === 'error'){
+          throw new Error(part.message || 'The model returned an error.');
+        }
+        const chunkText = (part && part.text) || '';
+        if(chunkText){
+          if(!started){
+            bubble.innerHTML = '';
+            started = true;
+          }
+          fullText += chunkText;
+          bubble.textContent = fullText;
+          const cursor = document.createElement('span');
+          cursor.className = 'cursor';
+          bubble.appendChild(cursor);
+          scrollToBottom();
+        }
+      }
+
+      const cur = bubble.querySelector('.cursor');
+      if(cur) cur.remove();
+
+      if(!fullText){
+        fullText = '(no response text was returned)';
+        bubble.textContent = fullText;
+      }
+
+      thread.messages.push({ role: 'assistant', content: fullText, model: thread.model });
+      saveState();
+    }catch(err){
+      console.error(err);
+      bubble.innerHTML = '';
+      bubble.classList.add('error');
+      const msg = (err && err.message) ? err.message : 'Something went wrong reaching this model.';
+      bubble.textContent = msg;
+      thread.messages.push({ role: 'assistant', content: msg, model: thread.model, error: true });
+      saveState();
+    }finally{
+      sending = false;
+      sendBtn.disabled = false;
+      renderThreadList();
+    }
+  }
+
+  /* ---------------- Init ---------------- */
+  (async function init(){
+    await populateModels();
+    renderAll();
+  })();
+})();
+</script>
+</body>
+</html>
